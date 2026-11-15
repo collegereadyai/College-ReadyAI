@@ -1,9 +1,6 @@
 # College ReadyAI — Supabase CLI configuration.
-#
-# Replace project_id with the project ref from the dashboard
-# (Settings -> General -> Reference ID) before running the CLI against it.
 
-project_id = "college-readyai"
+project_id = "ysfepzovaeexgcuqjavh"
 
 # Both functions are called from the public site. The site sends the anon key in
 # `Authorization`, which satisfies this check. Set verify_jwt = false only if you

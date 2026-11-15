@@ -1,0 +1,2 @@
+const paths = ["", "how-it-works", "features", "parents", "schools", "pricing", "about", "faq", "contact", "legal/privacy", "legal/terms", "legal/cookies", "legal/refunds", "legal/subprocessors", "legal/ai-notice", "legal/copyright", "legal/credits", "signup", "login"];
+export default function sitemap() { const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"; return paths.map((path) => ({ url: `${siteUrl}/${path}`, changeFrequency: "monthly", priority: path === "" ? 1 : 0.6 })); }

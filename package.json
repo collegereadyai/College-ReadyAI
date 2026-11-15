@@ -1,0 +1,21 @@
+{
+  "name": "college-readyai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node tests/migrations.mjs && node tests/functions.mjs",
+    "test:db": "node tests/migrations.mjs",
+    "test:functions": "node tests/functions.mjs",
+    "relay": "node tests/notify-relay.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {}
+}
