@@ -1,0 +1,19 @@
+# This folder also holds earlier work on the marketing site, which does not
+# belong in the repo: the Furge export, the single-file rebuild, and its sources.
+original.html
+index.html
+college-ready-ai-improved.html
+college-ready-ai-v2.html
+build/
+upload/
+v2/
+
+# Supabase CLI local state
+supabase/.branches
+supabase/.temp
+.env
+.env.*
+
+node_modules/
+.DS_Store
+Thumbs.db
