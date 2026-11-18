@@ -2,11 +2,16 @@
 
 project_id = "ysfepzovaeexgcuqjavh"
 
-# Both functions are called from the public site. The site sends the anon key in
-# `Authorization`, which satisfies this check. Set verify_jwt = false only if you
-# intend to call them with no key at all.
+# Both are called from a browser on the public site, so the gateway must not
+# check a JWT. A browser's CORS preflight carries no Authorization header; with
+# verify_jwt on, the gateway answered OPTIONS with no access-control-allow-origin
+# and the browser blocked the request before the function ever ran.
+#
+# This is not a loss of protection. The anon key is public by design, so the
+# check never kept anyone out; what guards these is inside them — the age gate,
+# the hashed guardian token, and the database's own row-level security.
 [functions.signup]
-verify_jwt = true
+verify_jwt = false
 
 [functions.guardian]
-verify_jwt = true
+verify_jwt = false

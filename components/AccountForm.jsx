@@ -112,8 +112,17 @@ export function AccountForm({ mode, stage = "" }) {
       </>}
 
       {!under13 && <>
-        <label className="checkline"><input type="checkbox" name="acceptedTerms" required/> I agree to the <Link href="/legal/terms">Terms</Link> and acknowledge the <Link href="/legal/privacy">Privacy Policy</Link>.</label>
-        <label className={`checkline ${under18 ? "disabled-choice" : ""}`}><input type="checkbox" name="marketingOptIn" disabled={under18}/> I agree to receive optional product updates by email. (Optional)</label>
+        {/* The text goes in a span of its own. `.checkline` is a flex row with a
+            gap, so without it the two links become flex items in their own right
+            and the gap opens a hole either side of them, mid-sentence. */}
+        <label className="checkline">
+          <input type="checkbox" name="acceptedTerms" required/>
+          <span>I agree to the <Link href="/legal/terms">Terms</Link> and acknowledge the <Link href="/legal/privacy">Privacy Policy</Link>.</span>
+        </label>
+        <label className={`checkline ${under18 ? "disabled-choice" : ""}`}>
+          <input type="checkbox" name="marketingOptIn" disabled={under18}/>
+          <span>I agree to receive optional product updates by email. (Optional)</span>
+        </label>
         <p className="form-note">{site.copy.signupNote}</p>
       </>}
     </>}

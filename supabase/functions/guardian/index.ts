@@ -20,7 +20,11 @@ const ORIGIN = env('ALLOWED_ORIGIN') || '*';
 const cors = {
   'access-control-allow-origin': ORIGIN,
   'access-control-allow-methods': 'POST, OPTIONS',
-  'access-control-allow-headers': 'content-type, authorization',
+  // 'apikey' and 'x-client-info' are sent by supabase-js and by lib/supabase.js.
+  // A header the preflight does not name is refused by the browser before the
+  // request is ever sent, and fetch() then throws the same way it does when a
+  // machine is offline — which is why the form said 'No connection'.
+  'access-control-allow-headers': 'content-type, authorization, apikey, x-client-info',
   'vary': 'origin',
 };
 

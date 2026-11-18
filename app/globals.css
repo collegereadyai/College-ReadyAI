@@ -375,3 +375,9 @@ h3{letter-spacing:-.015em;font-optical-sizing:auto}
 .header-brand-name{font-family:var(--display);font-size:1.05rem;font-weight:700;letter-spacing:-.025em}
 .header-brand-lockup:hover .header-brand-name{color:var(--blue)}
 @media(max-width:760px){.header-brand-name{font-size:.98rem}}
+
+/* .simple-form input sets width:100% and min-height:2.9rem, which also caught
+ the small checkboxes inside .checkline: the two selectors have the same
+ specificity and that one comes later, so a tick box rendered full width and
+ 46px tall. */
+.simple-form .checkline input[type=checkbox]{width:1.1rem;height:1.1rem;min-height:0;flex:none}
