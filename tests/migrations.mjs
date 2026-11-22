@@ -399,6 +399,46 @@ check('deleting the account clears the private half as well',
 check('deleting the account removes the auth user',
   (await rows(`select * from auth.users where id = '${CHIDI}'`)).length === 0);
 
+// ------------------------------------------------- scholarships, as gathered
+await as('service_role');
+
+check('the research list is seeded',
+  (await rows(`select count(*)::int as n from public.scholarships`))[0].n === 20);
+
+// The point of the migration: a record with no official link is still shown,
+// because hiding eighteen of twenty would not make a student better informed.
+check('most records have no application link yet, and are kept anyway',
+  (await rows(`select count(*)::int as n from public.scholarships where application_url is null`))[0].n === 18);
+
+check('every record says how far it has been checked',
+  (await rows(`select count(*)::int as n from public.scholarships
+               where verification in ('Unverified', 'Partially Verified', 'Verified')`))[0].n === 20);
+
+await refuses('a record cannot invent a verification state',
+  `insert into public.scholarships (name, verification) values ('Made up', 'Totally Legit')`,
+  /scholarships_verification_check/i);
+
+// 'Verified' without a date is just a word someone typed.
+await refuses('claiming verified without a date is refused',
+  `insert into public.scholarships (name, verification) values ('No date', 'Verified')`,
+  /scholarships_verified_needs_date/i);
+
+await allows('claiming verified with a date is fine',
+  `insert into public.scholarships (name, verification, last_verified_on)
+   values ('Checked today', 'Verified', current_date)`);
+
+// Re-importing the list must refresh a record, not duplicate it.
+await allows('re-importing a record updates it in place',
+  `insert into public.scholarships (record_ref, name, verification)
+   values ('NG-001', 'NNPC/SNEPCo National University Scholarship 2026', 'Unverified')
+   on conflict (record_ref) do update set name = excluded.name`);
+check('re-importing did not duplicate the record',
+  (await rows(`select count(*)::int as n from public.scholarships where record_ref = 'NG-001'`))[0].n === 1);
+
+await as('authenticated', AMAKA);
+check('an active student can read the list',
+  (await rows(`select id from public.scholarships limit 1`)).length === 1);
+
 // ---------------------------------------------------------------- report
 await as(null);
 console.log('\n== results ==\n');
