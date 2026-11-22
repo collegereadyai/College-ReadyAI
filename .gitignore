@@ -23,3 +23,6 @@ Thumbs.db
 out/
 *.tsbuildinfo
 !.env.example
+
+# A status write-up for the founder, not part of the site.
+status-report.html

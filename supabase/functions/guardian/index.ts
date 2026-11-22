@@ -8,30 +8,23 @@
 // account, every corporate mail scanner and link prefetcher that opens the
 // message would approve it for them.
 //
-// Environment: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ALLOWED_ORIGIN.
+// Environment: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ALLOWED_ORIGIN
+// (a comma-separated list — see ../_shared/cors.ts).
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { runGuardianDecision } from '../_shared/flow.ts';
 import { sha256 } from '../_shared/signup.ts';
+import { corsFor } from '../_shared/cors.ts';
 
 const env = (key: string): string => Deno.env.get(key) ?? '';
 
-const ORIGIN = env('ALLOWED_ORIGIN') || '*';
-const cors = {
-  'access-control-allow-origin': ORIGIN,
-  'access-control-allow-methods': 'POST, OPTIONS',
-  // 'apikey' and 'x-client-info' are sent by supabase-js and by lib/supabase.js.
-  // A header the preflight does not name is refused by the browser before the
-  // request is ever sent, and fetch() then throws the same way it does when a
-  // machine is offline — which is why the form said 'No connection'.
-  'access-control-allow-headers': 'content-type, authorization, apikey, x-client-info',
-  'vary': 'origin',
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...cors } });
-
 Deno.serve(async (req: Request) => {
+  // Built per request, not once at startup: the reply names the caller's own
+  // origin, so it cannot be a module-level constant shared by every caller.
+  const cors = corsFor(req);
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...cors } });
+
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   if (req.method !== 'POST') {
     return json({ error: 'Open this link from the email and choose an answer.' }, 405);

@@ -12,31 +12,23 @@
 // Environment:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY      provided by Supabase
 //   SITE_URL                                     where the guardian page lives
-//   ALLOWED_ORIGIN                               the site, for CORS
+//   ALLOWED_ORIGIN                               comma-separated; ../_shared/cors.ts
 //   GUARDIAN_NOTIFY_URL, GUARDIAN_NOTIFY_TOKEN   see ../_shared/notify.ts
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { runSignup } from '../_shared/flow.ts';
 import { senderFromEnv } from '../_shared/notify.ts';
+import { corsFor } from '../_shared/cors.ts';
 
 const env = (key: string): string => Deno.env.get(key) ?? '';
 
-const ORIGIN = env('ALLOWED_ORIGIN') || '*';
-const cors = {
-  'access-control-allow-origin': ORIGIN,
-  'access-control-allow-methods': 'POST, OPTIONS',
-  // 'apikey' and 'x-client-info' are sent by supabase-js and by lib/supabase.js.
-  // A header the preflight does not name is refused by the browser before the
-  // request is ever sent, and fetch() then throws the same way it does when a
-  // machine is offline — which is why the form said 'No connection'.
-  'access-control-allow-headers': 'content-type, authorization, apikey, x-client-info',
-  'vary': 'origin',
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...cors } });
-
 Deno.serve(async (req: Request) => {
+  // Built per request, not once at startup: the reply names the caller's own
+  // origin, so it cannot be a module-level constant shared by every caller.
+  const cors = corsFor(req);
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...cors } });
+
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   if (req.method !== 'POST') return json({ error: 'Use POST.' }, 405);
 
