@@ -470,6 +470,45 @@ await as('authenticated', AMAKA);
 check('an active student can read the universities',
   (await rows(`select id from public.institutions limit 1`)).length === 1);
 
+// ------------------------------------------------ practice questions, marking
+await as('service_role');
+
+check('the practice questions are seeded',
+  (await rows(`select count(*)::int as n from public.practice_questions`))[0].n === 10);
+
+check('every question says where it came from',
+  (await rows(`select count(*)::int as n from public.practice_questions
+               where origin is null or btrim(origin) = ''`))[0].n === 0);
+
+// A question whose answer is not one of its options is unanswerable, and a
+// student would only find out by getting it wrong whatever they picked.
+await refuses('a question cannot point past its own options',
+  `insert into public.practice_questions (board, subject, prompt, options, answer_index, origin)
+   values ('JAMB', 'Physics', 'Broken', array['a', 'b'], 7, 'test')`,
+  /practice_questions_answer_in_range/i);
+
+await refuses('a question needs at least two options',
+  `insert into public.practice_questions (board, subject, prompt, options, answer_index, origin)
+   values ('JAMB', 'Physics', 'Only one', array['a'], 0, 'test')`,
+  /options/i);
+
+await as('authenticated', AMAKA);
+check('an active student can read the questions',
+  (await rows(`select id from public.practice_questions limit 1`)).length === 1);
+
+await allows('a student can record a mock test',
+  `insert into public.mock_tests (student_id, board, subject, question_count, submitted_at, score)
+   values ('${AMAKA}', 'JAMB', 'Physics', 10, now(), 7)`);
+
+await allows('a student can record how they answered',
+  `insert into public.attempts (student_id, mock_test_id, subject, question_ref, chosen, correct)
+   select '${AMAKA}', id, 'Physics', 'PQ-PHY-001', '1', true
+     from public.mock_tests where student_id = '${AMAKA}' limit 1`);
+
+await as('authenticated', OUTSIDER);
+check('another student sees none of those attempts',
+  (await rows(`select id from public.attempts`)).length === 0);
+
 // ---------------------------------------------------------------- report
 await as(null);
 console.log('\n== results ==\n');
