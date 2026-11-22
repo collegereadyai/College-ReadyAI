@@ -439,6 +439,37 @@ await as('authenticated', AMAKA);
 check('an active student can read the list',
   (await rows(`select id from public.scholarships limit 1`)).length === 1);
 
+// ------------------------------------------------- universities, as gathered
+await as('service_role');
+
+check('the universities are seeded with their courses',
+  (await rows(`select count(*)::int as n from public.institutions`))[0].n === 3 &&
+  (await rows(`select count(*)::int as n from public.courses`))[0].n === 24);
+
+// Unlike a scholarship, a university we cannot link to has no business being
+// described to a student.
+await refuses('a university without a source cannot be added',
+  `insert into public.institutions (name, kind) values ('Nowhere University', 'university')`,
+  /source_url/i);
+
+check('fees stay as the published range, not a number',
+  (await rows(`select fees from public.institutions where ref = 'UL'`))[0].fees.includes('–'));
+
+// Courses are cleared and rewritten on import, so a second run must not double
+// them up.
+await allows('an import clears this institution\'s courses first',
+  `delete from public.courses where institution_id in (select id from public.institutions where ref = 'UL')`);
+await allows('re-importing the course list does not double it',
+  `insert into public.courses (institution_id, name, source_url)
+   select id, 'Law', source_url from public.institutions where ref = 'UL'`);
+check('one course row remains for that institution',
+  (await rows(`select count(*)::int as n from public.courses
+               where institution_id in (select id from public.institutions where ref = 'UL')`))[0].n === 1);
+
+await as('authenticated', AMAKA);
+check('an active student can read the universities',
+  (await rows(`select id from public.institutions limit 1`)).length === 1);
+
 // ---------------------------------------------------------------- report
 await as(null);
 console.log('\n== results ==\n');
