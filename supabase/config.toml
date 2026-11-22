@@ -10,6 +10,18 @@ project_id = "ysfepzovaeexgcuqjavh"
 # This is not a loss of protection. The anon key is public by design, so the
 # check never kept anyone out; what guards these is inside them — the age gate,
 # the hashed guardian token, and the database's own row-level security.
+# Supabase's own "Confirm email" step is off. With it on, every new account was
+# locked behind a link in an email — and with no mail provider configured, that
+# link never arrived, so nobody could log in after signing up at all.
+#
+# This is not the gate that matters here. For a student under 18 the real gate
+# is the guardian's approval, which is enforced in the database and cannot be
+# skipped by confirming an address. What is lost is proof that the address
+# belongs to the person, which matters again once password resets exist — so
+# this should go back on when a real mail provider is connected.
+[auth.email]
+enable_confirmations = false
+
 [functions.signup]
 verify_jwt = false
 

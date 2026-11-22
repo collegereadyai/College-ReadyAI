@@ -1,4 +1,4 @@
-import "./globals.css";
+import "../globals.css";
 import { Shell } from "@/components/Site";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";

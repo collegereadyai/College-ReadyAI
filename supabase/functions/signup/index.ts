@@ -49,8 +49,16 @@ Deno.serve(async (req: Request) => {
 
   const result = await runSignup(input, {
     createUser: async (email, password) => {
-      // email_confirm stays false so Supabase Auth's own verification applies.
-      const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: false });
+      // email_confirm is true because this account is created through the admin
+      // API, and that path does not send Supabase's verification email — it just
+      // marks the address unconfirmed. With `false` the student was then refused
+      // at login with "Email not confirmed", and no email ever arrived to fix it,
+      // so every account was created already locked.
+      //
+      // Nothing is lost that we had: the address is still unproven either way.
+      // When a mail provider is connected, send a verification from here and set
+      // this back to false.
+      const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true });
       if (error || !data.user) throw new Error(error?.message || 'The account could not be created.');
       return { id: data.user.id };
     },
