@@ -1274,3 +1274,59 @@
     .ai-note{font-size:12.5px;line-height:1.4;}
     .acc>summary{min-height:56px;padding:10px 16px;} .acc summary b{font-size:15px;}
   }
+
+  /* ============ SCREEN PLUMBING ============ */
+  /* Six of these (.simple-form, .check-list, .checkline, .form-note,
+     .button-row, .text-button) are the marketing site's, and the screens here
+     reached for them out of habit. That stylesheet is deliberately not loaded
+     in this group, so they were doing nothing at all — forms rendered as bare
+     browser defaults. Ported onto this group's own tokens rather than pulled
+     in, which would bring the conflicts the split exists to avoid.
+     The remaining four are this area's own. */
+
+  .simple-form{display:block;}
+  .simple-form label:not(.checkline){display:grid;gap:6px;margin:14px 0;font-weight:700;font-size:14px;}
+  .simple-form input:not([type=checkbox]):not([type=radio]),
+  .simple-form select,.simple-form textarea{
+    width:100%;min-height:44px;border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;color:var(--ink);background:var(--card);font-size:15px;
+  }
+  .simple-form input[type=file]{padding:9px 12px;}
+  .simple-form input:focus-visible,.simple-form select:focus-visible,.simple-form textarea:focus-visible{
+    outline:3px solid var(--track);outline-offset:1px;
+  }
+
+  .check-list{list-style:none;padding:0;margin:14px 0;display:grid;gap:10px;}
+  .check-list li{padding-left:18px;position:relative;line-height:1.5;}
+  .check-list li::before{
+    content:"";position:absolute;left:0;top:.6em;width:6px;height:6px;
+    border-radius:50%;background:var(--primary);
+  }
+
+  /* The tick box must stay a tick box. The rule above sets width:100% on
+     inputs, and without this the same bug the public sign-up form had — a
+     checkbox rendered full width and 46px tall — would reappear here. */
+  .checkline{display:flex;align-items:flex-start;gap:10px;margin:10px 0;font-size:14.5px;font-weight:400;}
+  .checkline input[type=checkbox],.checkline input[type=radio]{
+    width:18px;height:18px;min-height:0;flex:none;margin:2px 0 0;accent-color:var(--primary);
+  }
+
+  .form-note{color:var(--ink-soft);font-size:13.5px;margin:8px 0;}
+  .button-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 4px;}
+  .text-button{
+    border:0;background:transparent;color:var(--primary);padding:2px 4px;
+    cursor:pointer;font:inherit;text-decoration:underline;
+  }
+  .text-button:hover{background:var(--accenttint);border-radius:4px;}
+
+  .sf-filters{display:flex;gap:8px;flex-wrap:wrap;}
+  .uni-card{display:block;}
+  /* Wraps rather than letting the count ride over the name on a narrow pane. */
+  .uni-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .uni-head h3{margin:0;}
+
+  .sidebar-foot-btn{
+    display:flex;align-items:center;gap:10px;width:100%;padding:8px;border:0;
+    background:none;cursor:pointer;text-align:left;border-radius:8px;
+  }
+  .sidebar-foot-btn:hover{background:var(--canvas-deep);}
