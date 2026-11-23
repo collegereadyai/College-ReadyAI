@@ -114,6 +114,100 @@ export async function runSignup(input: SignupInput, deps: SignupDeps): Promise<S
 
 // ---------------------------------------------------------------------------
 
+export type CompleteDeps = Omit<SignupDeps, 'createUser' | 'deleteUser'> & {
+  /** Undoes the profile row, and everything that cascades from it. */
+  deleteProfile: (id: string) => Promise<void>;
+};
+
+export type CompleteInput = SignupInput & { userId: string; email: string };
+
+/**
+ * Finishes an account that already exists in auth but has no profile — the
+ * state a Google sign-in leaves behind.
+ *
+ * Google tells us an email address and a name. It does not tell us how old
+ * someone is, whether they accept the Terms, or who their guardian is, and
+ * those are the three things this product is not allowed to guess. So the
+ * same validation runs, the same age gate refuses an under-13, and a 13-17
+ * account is locked behind the same guardian approval. The only thing skipped
+ * is the password, because there isn't one.
+ *
+ * Unlike runSignup, a failure here does not delete the auth user. They signed
+ * in with Google and can try again; destroying their login because a profile
+ * insert failed would be a strange punishment. The partial profile goes, so
+ * the retry starts clean.
+ */
+export async function runCompleteProfile(
+  input: CompleteInput,
+  deps: CompleteDeps,
+): Promise<SignupResult> {
+  const checked = validateSignup(input, { requireCredentials: false });
+  if (!checked.ok) return checked;
+
+  const v: CleanSignup = checked.value;
+  const now = (deps.now || (() => new Date()))().toISOString();
+
+  try {
+    await deps.insertProfile({ id: input.userId, full_name: v.fullName, stage: v.stage });
+
+    // As in runSignup, this insert is what fires the age gate and locks a
+    // minor's account.
+    await deps.insertPrivate({
+      id: input.userId,
+      age_band: v.ageBand,
+      guardian_email: v.guardianEmail,
+      guardian_phone: v.guardianPhone,
+      marketing_opt_in: v.marketingOptIn,
+      accepted_terms_at: now,
+      accepted_privacy_at: now,
+    });
+
+    if (v.needsGuardian) {
+      const channel: 'email' | 'sms' = v.guardianEmail ? 'email' : 'sms';
+      const to = (v.guardianEmail || v.guardianPhone) as string;
+      const { token, tokenHash } = await mintGuardianToken();
+
+      await deps.insertGuardianRequest({ student_id: input.userId, sent_to: to, channel, token_hash: tokenHash });
+
+      await deps.send(
+        guardianRequestMessage({
+          studentName: v.fullName,
+          ageBand: v.ageBand,
+          to,
+          channel,
+          link: guardianLink(deps.siteUrl, token),
+        }),
+      );
+
+      return {
+        ok: true,
+        status: 201,
+        userId: input.userId,
+        needsGuardian: true,
+        message: `We have asked ${to} to approve your account. Nothing opens until they do.`,
+      };
+    }
+
+    return {
+      ok: true,
+      status: 201,
+      userId: input.userId,
+      needsGuardian: false,
+      message: 'Your account is ready.',
+    };
+  } catch (cause) {
+    try {
+      await deps.deleteProfile(input.userId);
+    } catch {
+      /* reported below as part of the original failure */
+    }
+    const detail = cause instanceof Error ? cause.message : 'Your profile could not be saved.';
+    return { ok: false, status: 502, error: detail, hint: 'cr_profile_rolled_back' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 export type GuardianDeps = {
   findByTokenHash: (hash: string) => Promise<(RequestRow & { student_name: string }) | null>;
   setDecision: (requestId: string, decision: string, decidedAt: string) => Promise<void>;

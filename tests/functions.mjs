@@ -8,7 +8,7 @@
 
 import { validateSignup, mintGuardianToken, sha256, guardianLink } from '../supabase/functions/_shared/signup.ts';
 import { checkDecision, parseAsk, looksLikeToken } from '../supabase/functions/_shared/guardian.ts';
-import { runSignup, runGuardianDecision } from '../supabase/functions/_shared/flow.ts';
+import { runSignup, runGuardianDecision, runCompleteProfile } from '../supabase/functions/_shared/flow.ts';
 import { senderFromEnv, NotConfigured, guardianRequestMessage } from '../supabase/functions/_shared/notify.ts';
 
 let failures = 0;
@@ -256,6 +256,74 @@ console.log('\n== sending ==\n');
 {
   const m = guardianRequestMessage({ studentName: 'Tobi', ageBand: '13-17', to: '+2348031234567', channel: 'sms', link: 'https://x/guardian?t=abc' });
   check('an sms version exists and stays short', m.channel === 'sms' && m.text.length < 320, String(m.text.length));
+}
+
+// ------------------------------------------- finishing a Google sign-in
+// The account already exists in auth; only the profile is missing. Everything
+// Google cannot tell us still has to be collected and checked.
+
+function googleDeps(overrides = {}) {
+  const { deps, log } = fakeDeps(overrides);
+  // There is no auth user to undo here — they signed in with Google.
+  deps.deleteProfile = async (id) => { log.deleted.push(id); };
+  delete deps.createUser;
+  delete deps.deleteUser;
+  return { deps, log };
+}
+
+const GOOGLE_USER = { userId: 'google-user-1', email: 'amaka@example.com' };
+
+{
+  const { deps, log } = googleDeps();
+  // No password: Google accounts do not have one with us.
+  const { password, email, ...rest } = ADULT;
+  const r = await runCompleteProfile({ ...rest, ...GOOGLE_USER }, deps);
+  check('a Google adult can finish without a password', r.ok && r.status === 201);
+  check('the profile is written against the verified user, not a body field',
+    log.profiles[0]?.id === 'google-user-1');
+  check('consent is still recorded with a timestamp',
+    !!log.privates[0]?.accepted_terms_at && !!log.privates[0]?.accepted_privacy_at);
+  check('no guardian is asked for an adult', log.requests.length === 0 && log.sent.length === 0);
+}
+
+{
+  // The whole reason this step exists.
+  const { deps, log } = googleDeps();
+  const r = await runCompleteProfile({ ...MINOR, ...GOOGLE_USER, ageBand: 'under13' }, deps);
+  check('an under-13 is refused even though Google let them in',
+    !r.ok && r.status === 403 && r.hint === 'cr_under_13');
+  check('nothing is written for an under-13',
+    log.profiles.length === 0 && log.privates.length === 0);
+}
+
+{
+  const { deps, log } = googleDeps();
+  const { password, ...rest } = MINOR;
+  const r = await runCompleteProfile({ ...rest, ...GOOGLE_USER, email: 'tobi@example.com' }, deps);
+  check('a Google 13-17 account still needs a guardian', r.ok && r.needsGuardian === true);
+  check('the guardian is asked, and only the hash is stored',
+    log.requests.length === 1 && !!log.requests[0].token_hash && !('token' in log.requests[0]));
+  check('the approval message is sent', log.sent.length === 1);
+}
+
+{
+  const { deps } = googleDeps();
+  const { password, ...rest } = ADULT;
+  const r = await runCompleteProfile({ ...rest, ...GOOGLE_USER, acceptedTerms: false }, deps);
+  check('consent cannot be skipped on the Google path', !r.ok && r.status === 400);
+}
+
+{
+  // A failure must not cost them their Google login.
+  const { deps, log } = googleDeps({
+    insertPrivate: async () => { throw new Error('database said no'); },
+  });
+  const { password, ...rest } = ADULT;
+  const r = await runCompleteProfile({ ...rest, ...GOOGLE_USER }, deps);
+  check('a failure rolls the profile back', !r.ok && r.hint === 'cr_profile_rolled_back');
+  check('the rollback removes the profile, not the account',
+    log.deleted.length === 1 && log.deleted[0] === 'google-user-1');
+  check('the original reason survives the rollback', !r.ok && /database said no/.test(r.error));
 }
 
 // --------------------------------------------------------------- report

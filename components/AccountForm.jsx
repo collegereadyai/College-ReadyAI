@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { site } from "@/content/site";
-import { supabase, configured, callFunction } from "@/lib/supabase";
+import { supabase, configured, callFunction, signInWithGoogle } from "@/lib/supabase";
 
 // Sign-up never calls supabase.auth.signUp() directly. It posts to our own
 // `signup` function, which refuses an under-13 before any account exists, mints
@@ -81,7 +81,29 @@ export function AccountForm({ mode, stage = "" }) {
     </div>;
   }
 
+  // Google is offered on both screens, because someone who signed up with it
+  // has no password to log in with. It only proves an email address: anyone
+  // without a profile is sent to /welcome for the age gate and consent.
+  async function onGoogle() {
+    if (busy) return;
+    setError("");
+    setBusy(true);
+    const { error: oauthError } = await signInWithGoogle();
+    if (oauthError) { setError(oauthError.message); setBusy(false); }
+    // On success the browser leaves for Google, so there is nothing to reset.
+  }
+
   return <form className="simple-form account-form" onSubmit={onSubmit}>
+    <button className="button button-outline" type="button" onClick={onGoogle} disabled={busy}>
+      Continue with Google
+    </button>
+    <p className="form-note">
+      {signup
+        ? "We will still ask your age group and for the Terms — Google does not tell us those."
+        : "Use this if you created your account with Google."}
+    </p>
+    <p className="form-note" aria-hidden="true">or</p>
+
     {signup && <label>Where are you now?<select name="stage" defaultValue={stage}>
       <option value="">Choose a stage</option>
       <option value="secondary">Senior secondary</option>

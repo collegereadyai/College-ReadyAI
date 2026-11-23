@@ -57,7 +57,24 @@ export const MIN_PASSWORD = 8;
  * them too, but by then a user row would already exist, and the promise is that
  * "no account is created and nothing is kept".
  */
-export function validateSignup(input: SignupInput): Accepted | Refusal {
+export type ValidateOptions = {
+  /**
+   * False when the account already exists and we are only finishing its
+   * profile — a Google sign-in, where there is no password to check and the
+   * address came from a verified token rather than a form.
+   *
+   * Every other rule still applies. The age gate in particular: signing in
+   * with Google says nothing about how old someone is, so an under-13 has to
+   * be refused here exactly as on the sign-up form.
+   */
+  requireCredentials?: boolean;
+};
+
+export function validateSignup(
+  input: SignupInput,
+  options: ValidateOptions = {},
+): Accepted | Refusal {
+  const requireCredentials = options.requireCredentials !== false;
   const ageBand = text(input.ageBand) as AgeBand;
 
   if (!ageBand) {
@@ -82,7 +99,7 @@ export function validateSignup(input: SignupInput): Accepted | Refusal {
   }
 
   const password = typeof input.password === 'string' ? input.password : '';
-  if (password.length < MIN_PASSWORD) {
+  if (requireCredentials && password.length < MIN_PASSWORD) {
     return {
       ok: false,
       status: 400,

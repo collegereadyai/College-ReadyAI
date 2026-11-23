@@ -27,3 +27,10 @@ verify_jwt = false
 
 [functions.guardian]
 verify_jwt = false
+
+# Called from the browser with the student's own access token, which the
+# function verifies itself. The gateway check stays off for the same reason as
+# the other two: a CORS preflight carries no Authorization header, so with it
+# on the browser never gets as far as the POST.
+[functions.complete-profile]
+verify_jwt = false

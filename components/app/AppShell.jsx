@@ -59,9 +59,15 @@ function Gate({ state, onSignOut, children }) {
     <button className="btn-outline" type="button" onClick={onSignOut}>Log out</button>
   </>;
 
+  // A session with no profile is what a Google sign-in leaves behind: the
+  // account exists, but no age band, no consent and no guardian. That is not
+  // an error to report, it is a step to finish — so it points at /welcome
+  // rather than a dead end. Leaving someone here would mean an account that
+  // never passed the age gate sitting inside the product.
   if (!state.profile) return <>
-    <h1>We could not find your account</h1>
-    <p>Signed in as {state.email}, but there is no profile attached to it.</p>
+    <h1>Finish setting up</h1>
+    <p>Signed in as {state.email}. Your account needs a few details Google does not tell us.</p>
+    <p><a className="btn-primary" href="/welcome">Finish setting up</a></p>
     <button className="btn-outline" type="button" onClick={onSignOut}>Log out</button>
   </>;
 
