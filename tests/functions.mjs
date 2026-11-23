@@ -9,6 +9,7 @@
 import { validateSignup, mintGuardianToken, sha256, guardianLink } from '../supabase/functions/_shared/signup.ts';
 import { checkDecision, parseAsk, looksLikeToken } from '../supabase/functions/_shared/guardian.ts';
 import { runSignup, runGuardianDecision, runCompleteProfile } from '../supabase/functions/_shared/flow.ts';
+import { buildProviderRequest, tokenAccepted } from '../supabase/functions/_shared/mail.ts';
 import { senderFromEnv, NotConfigured, guardianRequestMessage } from '../supabase/functions/_shared/notify.ts';
 
 let failures = 0;
@@ -325,6 +326,70 @@ const GOOGLE_USER = { userId: 'google-user-1', email: 'amaka@example.com' };
     log.deleted.length === 1 && log.deleted[0] === 'google-user-1');
   check('the original reason survives the rollback', !r.ok && /database said no/.test(r.error));
 }
+
+// ------------------------------------------------- handing a message to mail
+// The mapping is the whole risk here: a wrong field name means the guardian is
+// never asked, which is the one failure this flow exists to prevent.
+
+const MAIL_MSG = {
+  to: 'parent@example.com',
+  channel: 'email',
+  subject: "Please review Tobi's request",
+  text: 'Approve or say no here: https://x/guardian?t=abc',
+};
+
+{
+  const req = buildProviderRequest(
+    { MAIL_PROVIDER: 'resend', MAIL_API_KEY: 'key-1', MAIL_FROM: 'hello@collegereadyai.com' },
+    MAIL_MSG,
+  );
+  const body = JSON.parse(req.body);
+  check('resend is addressed correctly', req.url === 'https://api.resend.com/emails');
+  check('resend takes the key as a bearer', req.headers.authorization === 'Bearer key-1');
+  check('resend gets the recipient as a list', Array.isArray(body.to) && body.to[0] === 'parent@example.com');
+  check('resend gets the body as text', body.text === MAIL_MSG.text);
+  check('the sender carries a display name', body.from === 'College ReadyAI <hello@collegereadyai.com>');
+}
+
+{
+  const req = buildProviderRequest(
+    { MAIL_PROVIDER: 'brevo', MAIL_API_KEY: 'key-2', MAIL_FROM: 'hello@collegereadyai.com' },
+    MAIL_MSG,
+  );
+  const body = JSON.parse(req.body);
+  // Brevo differs from Resend in all three of these, which is exactly the kind
+  // of thing that is wrong until someone checks.
+  check('brevo takes the key in its own header', req.headers['api-key'] === 'key-2' && !req.headers.authorization);
+  check('brevo wants the recipient as an object', body.to[0].email === 'parent@example.com');
+  check('brevo wants textContent, not text', body.textContent === MAIL_MSG.text && body.text === undefined);
+}
+
+for (const [missing, env] of [
+  ['provider', { MAIL_API_KEY: 'k', MAIL_FROM: 'a@b.c' }],
+  ['key', { MAIL_PROVIDER: 'resend', MAIL_FROM: 'a@b.c' }],
+  ['from address', { MAIL_PROVIDER: 'resend', MAIL_API_KEY: 'k' }],
+]) {
+  let threw = false;
+  try { buildProviderRequest(env, MAIL_MSG); } catch { threw = true; }
+  check(`a missing ${missing} is refused, not guessed`, threw);
+}
+
+{
+  let threw = false;
+  try {
+    buildProviderRequest(
+      { MAIL_PROVIDER: 'resend', MAIL_API_KEY: 'k', MAIL_FROM: 'a@b.c' },
+      { ...MAIL_MSG, channel: 'sms', to: '+2348031234567' },
+    );
+  } catch { threw = true; }
+  check('an sms is not quietly emailed to a phone number', threw);
+}
+
+check('an unset token refuses everything, rather than allowing it',
+  tokenAccepted('', 'anything') === false);
+check('a wrong token is refused', tokenAccepted('secret-value', 'secret-valve') === false);
+check('a short guess is refused', tokenAccepted('secret-value', 'secret') === false);
+check('the right token is accepted', tokenAccepted('secret-value', ' secret-value ') === true);
 
 // --------------------------------------------------------------- report
 console.log('\n== results ==\n');

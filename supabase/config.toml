@@ -34,3 +34,10 @@ verify_jwt = false
 # on the browser never gets as far as the POST.
 [functions.complete-profile]
 verify_jwt = false
+
+# Called by the other functions, never by a browser. The gateway's JWT check is
+# off because the caller presents GUARDIAN_NOTIFY_TOKEN, a shared secret rather
+# than a JWT, which the function compares itself. It refuses when that token is
+# missing, wrong, or not configured at all.
+[functions.notify]
+verify_jwt = false
